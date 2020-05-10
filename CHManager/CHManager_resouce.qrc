@@ -53,6 +53,11 @@
         <file>resource/usb_micro_b_32px.png</file>
         <file>resource/pause_button_32px.png</file>
         <file>resource/rewind_32px.png</file>
+        <file>resource/broom_32px.png</file>
+        <file>resource/filter_32px.png</file>
+        <file>resource/lock_32px.png</file>
+        <file>resource/padlock_32px.png</file>
+        <file>resource/timesheet_32px.png</file>
     </qresource>
     <qresource prefix="/languages">
         <file>CHManager_en_US.qm</file>
