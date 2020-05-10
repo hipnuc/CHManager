@@ -14,7 +14,6 @@
 #include <QAction>
 #include <QSlider>
 #include <QLabel>
-#include <QTimer>
 #include <QSerialPort>
 #include <QSerialPortInfo>
 #include <QDateTime>
@@ -26,19 +25,30 @@ Dashboard::Dashboard(QWidget *parent)
     : QMainWindow(parent)
 {
     setObjectName("Dashboard");
-    setWindowTitle("CHManager Dashboard");
+    setWindowTitle(tr("CHManager Dashboard"));
     setMinimumSize(1280, 720);
 
     setupMenuBar();
     setupStatusBar();
+    setupDataBinder();
 }
 
 Dashboard::~Dashboard()
 {
 }
 
+void Dashboard::setupDataBinder()
+{
+    console = new CHConsole();
+    imubinder_timer = new QTimer();
+
+    connect(ch_dev.m_serial, SIGNAL(readyRead()), this, SLOT(readData()));
+    connect(imubinder_timer, SIGNAL(timeout()), this, SLOT(readIMUdata()));
+}
+
 void Dashboard::setupMenuBar()
 {
+
     //! [Device Menu]
         QMenu *deviceMenu = menuBar()->addMenu(tr("&Device(D)"));
         QToolBar *deviceToolBar = addToolBar(tr("Device"));
@@ -52,6 +62,7 @@ void Dashboard::setupMenuBar()
         QAction *action = connectionMenu->addAction(disconnected_Icon, tr("Disconnect"));
         action->setCheckable(true);
         action->setStatusTip(tr("Disconnect Serial Port"));
+        connect(action, SIGNAL(triggered()), this, SLOT(closeSerialPort()));
 
         action = connectionMenu->addSeparator();
 
@@ -59,18 +70,42 @@ void Dashboard::setupMenuBar()
         action = connectionMenu->addAction(refresh_Icon, tr("Refresh"));
         action->setCheckable(true);
         action->setStatusTip(tr("Refresh Serial Ports"));
-
         action = connectionMenu->addSeparator();
+
+        QActionGroup *binderport = new QActionGroup(this);
+        QList <QAction *> actionports;
+        QStringList portlist, flags;
+
+        ch_dev.getCurrentPortinfo(0, &portlist, &flags);
+
+        for (int i = 0; i < portlist.size(); i++) {
+            actionports += new QAction(portlist[i], binderport);
+            actionports[i]->setCheckable(true);
+            if (!flags[i].toInt())
+                actionports[i]->setDisabled(true);
+        }
+        connectionMenu->addActions(actionports);
         deviceMenu->addMenu(connectionMenu);
         deviceToolBar->addAction(connectionMenu->menuAction());
+        connect(binderport, SIGNAL(triggered(QAction *)), this, SLOT(openSerialPort(QAction* )));
 
         QMenu *baudrateMenu = new QMenu(tr("Baudrate"));
         const QIcon arrow_Icon = QIcon::fromTheme("", QIcon(":/images/resource/single_choice_32px.png"));
+        QList <QAction *> actionbaud;
+        QActionGroup *binderbaud = new QActionGroup(this);
+        QStringList lists = {"1200", "2400", "4800", "9600", "19200", "38400", "57600", "115200", "230400", "460800", "921600", "custom"};
+        for(int i = 0; i < lists.size(); i++) {
+            actionbaud += new QAction(lists[i], binderbaud);
+            actionbaud[i]->setCheckable(true);
+        }
         baudrateMenu->setIcon(arrow_Icon);
+        actionbaud[7]->setChecked(true);
+        baudrateMenu->addActions(actionbaud);
         deviceMenu->addMenu(baudrateMenu);
         deviceMenu->addSeparator();
         deviceToolBar->addAction(baudrateMenu->menuAction());
         deviceToolBar->addSeparator();
+        connect(binderbaud, SIGNAL(triggered(QAction *)), this, SLOT(setCurrentBaudrate(QAction* )));
 
         const QIcon upgradeFirmware_Icon = QIcon::fromTheme("", QIcon(":/images/resource/upgrade_32px.png"));
         action = deviceMenu->addAction(upgradeFirmware_Icon, tr("Firmware Update"));
@@ -158,6 +193,7 @@ void Dashboard::setupMenuBar()
        action->setCheckable(true);
        action->setStatusTip(tr("Creates a Package Console"));
        viewToolBar->addAction(action);
+       connect(action, SIGNAL(triggered()), this, SLOT(showConsole()));
 
        const QIcon textConsole_Icon = QIcon::fromTheme("", QIcon(":/images/resource/text_32px.png"));
        action = viewMenu->addAction(textConsole_Icon, tr("Text Console"));
@@ -178,24 +214,28 @@ void Dashboard::setupMenuBar()
        action->setCheckable(true);
        action->setStatusTip(tr("Creates a Chart View with Gyroscope"));
        viewToolBar->addAction(action);
+       connect(action, SIGNAL(triggered()), this, SLOT(showCustomchart()));
 
        const QIcon acceleration_Icon = QIcon::fromTheme("", QIcon(":/images/resource/speedometer_32px.png"));
        action = chartMenu->addAction(acceleration_Icon, tr("Acceleration"));
        action->setCheckable(true);
        action->setStatusTip(tr("Creates a Chart View with Acceleration"));
        viewToolBar->addAction(action);
+       connect(action, SIGNAL(triggered()), this, SLOT(showCustomchart()));
 
        const QIcon magnetic_field_Icon = QIcon::fromTheme("", QIcon(":/images/resource/magnetic_32px.png"));
        action = chartMenu->addAction(magnetic_field_Icon, tr("Magnetic Field"));
        action->setCheckable(true);
        action->setStatusTip(tr("Creates a Chart View with Magnetic Field"));
        viewToolBar->addAction(action);
+       connect(action, SIGNAL(triggered()), this, SLOT(showCustomchart()));
 
        const QIcon euler_Icon = QIcon::fromTheme("", QIcon(":/images/resource/line_chart_32px.png"));
        action = chartMenu->addAction(euler_Icon, tr("Euler Angle"));
        action->setCheckable(true);
        action->setStatusTip(tr("Creates a Chart View with Euler Angle"));
        viewToolBar->addAction(action);
+       connect(action, SIGNAL(triggered()), this, SLOT(showCustomchart()));
 
        const QIcon quaternion_Icon = QIcon::fromTheme("", QIcon(":/images/resource/quaterly_32px.png"));
        action = chartMenu->addAction(quaternion_Icon, tr("Quaternion"));
@@ -204,6 +244,7 @@ void Dashboard::setupMenuBar()
        viewToolBar->addAction(action);
        viewMenu->addMenu(chartMenu);
        viewMenu->addSeparator();
+       connect(action, SIGNAL(triggered()), this, SLOT(showCustomchart()));
 
        const QIcon heading_Icon = QIcon::fromTheme("", QIcon(":/images/resource/airport_32px.png"));
        action = dockWidgetMenu->addAction(heading_Icon, tr("Heading"));
@@ -397,4 +438,66 @@ void Dashboard::setTranslator(QTranslator* translator)
 void Dashboard::switchLanguage(QAction* action)
 {
     translator->load(QString(":/languages/CHManager_%1").arg(action->text()));
+}
+
+void Dashboard::setCurrentBaudrate(QAction* action)
+{
+    this->m_baudrate = action->text().toInt();
+}
+
+int Dashboard::getCurrentBaudrate()
+{
+    return this->m_baudrate;
+
+}
+
+void Dashboard::openSerialPort(QAction *action)
+{
+    if (!ch_dev.openSerialPort(action->text(), getCurrentBaudrate())) {
+        curr_device->setText(tr("%1 - Connected").arg(action->text()));
+        action->setChecked(true);
+    }else {
+        curr_device->setText(tr("Cannot connect %1").arg(action->text()));
+        action->setChecked(false);
+    }
+
+    imu_data_decode_init();
+}
+
+void Dashboard::closeSerialPort()
+{
+    ch_dev.closeSerialPort();
+    curr_device->setText(tr("Disconnected"));
+}
+
+void Dashboard::readData()
+{
+    QByteArray array;
+    long long len = 0;
+    ch_dev.readData(&array, &len);
+
+    if (len > 0) {
+        for (int i = 0 ; i < len; i++) {
+            uint8_t ch = array[i];
+            kptl_decode(ch);
+        }
+    }
+
+    this->console->updateTextdata(array);
+}
+
+void Dashboard::showConsole()
+{
+    this->setCentralWidget(this->console);
+}
+
+void Dashboard::readIMUdata()
+{
+    dump_rf_data(&imublock);
+    qDebug("eul: %f %f %f\r\n", imublock.eul[0], imublock.eul[1], imublock.eul[2]);
+}
+
+void Dashboard::showCustomchart()
+{
+    imubinder_timer->start(100);
 }
