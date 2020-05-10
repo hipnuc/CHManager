@@ -22,10 +22,12 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    device/chserialdevice.cpp \
     main.cpp \
     dashboard.cpp
 
 HEADERS += \
+    device/chserialdevice.h \
     dashboard.h
 
 TRANSLATIONS += \
