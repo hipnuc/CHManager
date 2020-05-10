@@ -24,11 +24,15 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     device/chserialdevice.cpp \
     main.cpp \
-    dashboard.cpp
+    dashboard.cpp \
+    protocol/chhi22x.cpp \
+    protocol/kptl.cpp
 
 HEADERS += \
     device/chserialdevice.h \
-    dashboard.h
+    dashboard.h \
+    protocol/chhi22x.h \
+    protocol/kptl.h
 
 TRANSLATIONS += \
     CHManager_en_US.ts \
