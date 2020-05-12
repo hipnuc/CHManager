@@ -19,6 +19,10 @@
 #include <QDateTime>
 #include <QEvent>
 #include <QApplication>
+#include <QDockWidget>
+#include <QTableWidget>
+#include <QHeaderView>
+#include <QGridLayout>
 #include <QDebug>
 
 Dashboard::Dashboard(QWidget *parent)
@@ -28,8 +32,16 @@ Dashboard::Dashboard(QWidget *parent)
     setWindowTitle(tr("CHManager Dashboard"));
     setMinimumSize(1280, 720);
 
+//! Center Widget
+    centerwidget = new QWidget();
+    setCentralWidget(centerwidget);
+
+    grid = new QGridLayout();
+    centerwidget->setLayout(grid);
+
     setupMenuBar();
     setupStatusBar();
+    setupDockWindows();
     setupDataBinder();
 }
 
@@ -40,6 +52,10 @@ Dashboard::~Dashboard()
 void Dashboard::setupDataBinder()
 {
     console = new CHConsole();
+    realdata = new CHRealTime();
+
+    realdata_dock->setWidget(realdata);
+    realdata->transaction();
 
     connect(ch_dev.m_serial, SIGNAL(readyRead()), this, SLOT(readData()));
 }
@@ -253,35 +269,61 @@ void Dashboard::setupMenuBar()
        viewMenu->addSeparator();
        connect(action, SIGNAL(triggered()), this, SLOT(showCustomchart()));
 
-       const QIcon heading_Icon = QIcon::fromTheme("", QIcon(":/images/resource/airport_32px.png"));
-       action = dockWidgetMenu->addAction(heading_Icon, tr("Heading"));
-       action->setCheckable(true);
-       action->setStatusTip(tr("Creates a Heading View with Euler Angle"));
-       viewToolBar->addAction(action);
-
-       const QIcon attitude_Icon = QIcon::fromTheme("", QIcon(":/images/resource/attitude_32px.png"));
-       action = dockWidgetMenu->addAction(attitude_Icon, tr("Attitude"));
-       action->setCheckable(true);
-       action->setStatusTip(tr("Show a Attitude View"));
-       viewToolBar->addAction(action);
-
-       const QIcon threedimensional_Icon = QIcon::fromTheme("", QIcon(":/images/resource/3d_32px.png"));
-       action = dockWidgetMenu->addAction(threedimensional_Icon, tr("3D Attitude"));
-       action->setCheckable(true);
-       action->setStatusTip(tr("Show a 3D Attitude View"));
-       viewToolBar->addAction(action);
-
-       const QIcon atomspheric_Icon = QIcon::fromTheme("", QIcon(":/images/resource/atmospheric_pressure_32px.png"));
-       action = dockWidgetMenu->addAction(atomspheric_Icon, tr("Atomspheric"));
-       action->setCheckable(true);
-       action->setStatusTip(tr("Show a current Atomspheric View"));
-       viewToolBar->addAction(action);
-
        const QIcon tracker_Icon = QIcon::fromTheme("", QIcon(":/images/resource/track_order_32px.png"));
-       action = dockWidgetMenu->addAction(tracker_Icon, tr("UWB Tracker"));
+       action = chartMenu->addAction(tracker_Icon, tr("UWB Tracker"));
        action->setCheckable(true);
        action->setStatusTip(tr("Creates a UWB Tracker View with UWB"));
        viewToolBar->addAction(action);
+
+       const QIcon data_Icon = QIcon::fromTheme("", QIcon(":/images/resource/realdata_30px.png"));
+       action = dockWidgetMenu->addAction(data_Icon, tr("Real Time Data"));
+       action->setCheckable(true);
+       action->setChecked(true);
+       action->setObjectName("act_realtime");
+       action->setStatusTip(tr("Show current Real Time valid data View"));
+       viewToolBar->addAction(action);
+       connect(action, SIGNAL(triggered(bool)), this, SLOT(docktoggleView(bool)));
+
+       const QIcon heading_Icon = QIcon::fromTheme("", QIcon(":/images/resource/airport_32px.png"));
+       action = dockWidgetMenu->addAction(heading_Icon, tr("Heading"));
+       action->setObjectName("act_heading");
+       action->setCheckable(true);
+       action->setStatusTip(tr("Creates a Heading View with Euler Angle"));
+       viewToolBar->addAction(action);
+       connect(action, SIGNAL(triggered(bool)), this, SLOT(docktoggleView(bool)));
+
+       const QIcon attitude_Icon = QIcon::fromTheme("", QIcon(":/images/resource/attitude_32px.png"));
+       action = dockWidgetMenu->addAction(attitude_Icon, tr("Attitude"));
+       action->setObjectName("act_attitude");
+       action->setCheckable(true);
+       action->setStatusTip(tr("Show a Attitude View"));
+       viewToolBar->addAction(action);
+       connect(action, SIGNAL(triggered(bool)), this, SLOT(docktoggleView(bool)));
+
+       const QIcon threedimensional_Icon = QIcon::fromTheme("", QIcon(":/images/resource/3d_32px.png"));
+       action = dockWidgetMenu->addAction(threedimensional_Icon, tr("3D Attitude"));
+       action->setObjectName("act_threed");
+       action->setCheckable(true);
+       action->setStatusTip(tr("Show a 3D Attitude View"));
+       viewToolBar->addAction(action);
+       connect(action, SIGNAL(triggered(bool)), this, SLOT(docktoggleView(bool)));
+
+       const QIcon atomspheric_Icon = QIcon::fromTheme("", QIcon(":/images/resource/atmospheric_pressure_32px.png"));
+       action = dockWidgetMenu->addAction(atomspheric_Icon, tr("Atomspheric"));
+       action->setObjectName("act_atomspheric");
+       action->setCheckable(true);
+       action->setStatusTip(tr("Show a current Atomspheric View"));
+       viewToolBar->addAction(action);
+       connect(action, SIGNAL(triggered(bool)), this, SLOT(docktoggleView(bool)));
+
+       const QIcon framerate_Icon = QIcon::fromTheme("", QIcon(":/images/resource/frame_rate_50px.png"));
+       action = dockWidgetMenu->addAction(framerate_Icon, tr("Frame Rate"));
+       action->setObjectName("act_framrate");
+       action->setCheckable(true);
+       action->setStatusTip(tr("Show a current Frame Rate of Device"));
+       viewToolBar->addAction(action);
+       connect(action, SIGNAL(triggered(bool)), this, SLOT(docktoggleView(bool)));
+
        viewMenu->addMenu(dockWidgetMenu);
 
    //! [Player View]
@@ -428,6 +470,65 @@ void Dashboard::setupStatusBar()
     connect(timer,SIGNAL(timeout()),this,SLOT(getCurrentTime()));
 }
 
+void Dashboard::setupDockWindows()
+{
+    realdata_dock = new QDockWidget(tr("Real Time Packects"), this);
+    realdata_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    addDockWidget(Qt::RightDockWidgetArea, realdata_dock);
+
+    heading_dock = new QDockWidget(tr("Heading"), this);
+    heading_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    addDockWidget(Qt::RightDockWidgetArea, heading_dock);
+    heading_dock->hide();
+
+    attitude_dock = new QDockWidget(tr("2D Attitude"), this);
+    attitude_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    addDockWidget(Qt::RightDockWidgetArea, attitude_dock);
+    attitude_dock->hide();
+
+    threed_dock = new QDockWidget(tr("3D Attitude"), this);
+    threed_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    addDockWidget(Qt::TopDockWidgetArea, threed_dock);
+    threed_dock->hide();
+
+    atomspheric_dock = new QDockWidget(tr("Atomspheric"), this);
+    atomspheric_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    addDockWidget(Qt::TopDockWidgetArea, atomspheric_dock);
+    atomspheric_dock->hide();
+
+    framrate_dock = new QDockWidget(tr("Frame Rate"), this);
+    framrate_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    addDockWidget(Qt::TopDockWidgetArea, framrate_dock);
+    framrate_dock->hide();
+}
+
+void Dashboard::docktoggleView(bool b)
+{
+    QAction *action =  qobject_cast <QAction *>(sender());
+    QDockWidget *q = nullptr;
+
+    if (action->objectName() == "act_realtime") {
+        q = this->realdata_dock;
+    }
+    else if (action->objectName() == "act_heading")
+        q = this->heading_dock;
+    else if (action->objectName() == "act_attitude")
+        q = this->attitude_dock;
+    else if (action->objectName() == "act_threed")
+        q = this->threed_dock;
+    else if (action->objectName() == "act_atomspheric")
+        q = this->atomspheric_dock;
+    else if (action->objectName() == "act_framrate")
+        q = this->framrate_dock;
+
+    if (b == q->isHidden()) {
+        if (b)
+            q->show();
+        else
+            q->close();
+    }
+}
+
 void Dashboard::getCurrentTime()
 {
     QDateTime now = QDateTime::currentDateTime();
@@ -493,8 +594,8 @@ void Dashboard::readData()
 
 void Dashboard::showConsole()
 {
-    //this->setCentralWidget(this->console);
-    console->show();
+    //console->show();
+    grid->addWidget(console);
     this->console->transaction();
 }
 

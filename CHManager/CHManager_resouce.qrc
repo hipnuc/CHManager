@@ -58,6 +58,8 @@
         <file>resource/lock_32px.png</file>
         <file>resource/padlock_32px.png</file>
         <file>resource/timesheet_32px.png</file>
+        <file>resource/frame_rate_50px.png</file>
+        <file>resource/realdata_30px.png</file>
     </qresource>
     <qresource prefix="/languages">
         <file>CHManager_en_US.qm</file>

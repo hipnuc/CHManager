@@ -9,6 +9,7 @@
 
 #include "device/chserialdevice.h"
 #include "console/chconsole.h"
+#include "dock/chrealtime.h"
 
 #include <QMainWindow>
 #include <QTranslator>
@@ -16,6 +17,7 @@
 
 class ToolBar;
 class QLabel;
+class QGridLayout;
 QT_FORWARD_DECLARE_CLASS(QMenu)
 
 class Dashboard : public QMainWindow
@@ -31,9 +33,18 @@ public:
 private:
     void setupMenuBar();
     void setupStatusBar();
+    void setupDockWindows();
     void setupDataBinder();
     int getCurrentBaudrate();
 
+    QDockWidget *realdata_dock;
+    QDockWidget *heading_dock;
+    QDockWidget *attitude_dock;
+    QDockWidget *threed_dock;
+    QDockWidget *atomspheric_dock;
+    QDockWidget *framrate_dock;
+    QWidget *centerwidget;
+    QGridLayout *grid;
     QLabel *curr_device;
     QLabel *curr_datatime;
     QTranslator* translator;
@@ -41,6 +52,7 @@ private:
     int m_baudrate = 115200;
 
     CHConsole *console;
+    CHRealTime *realdata;
 
 protected:
 
@@ -53,6 +65,7 @@ private slots:
     void readData();
     void showConsole();
     void showCustomchart();
+    void docktoggleView(bool b);
 
 };
 #endif // DASHBOARD_H
