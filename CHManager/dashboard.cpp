@@ -107,13 +107,13 @@ void Dashboard::setupMenuBar()
         const QIcon arrow_Icon = QIcon::fromTheme("", QIcon(":/images/resource/single_choice_32px.png"));
         QList <QAction *> actionbaud;
         QActionGroup *binderbaud = new QActionGroup(this);
-        QStringList lists = {"1200", "2400", "4800", "9600", "19200", "38400", "57600", "115200", "230400", "460800", "921600", "custom"};
-        for(int i = 0; i < lists.size(); i++) {
-            actionbaud += new QAction(lists[i], binderbaud);
+        QStringList baudRate_list =  {"4800", "9600", "115200", "256000", "460800", "921600", "custom"};;
+        for(int i = 0; i < baudRate_list.size(); i++) {
+            actionbaud += new QAction(baudRate_list[i], binderbaud);
             actionbaud[i]->setCheckable(true);
         }
         baudrateMenu->setIcon(arrow_Icon);
-        actionbaud[7]->setChecked(true);
+        actionbaud[2]->setChecked(true);
         baudrateMenu->addActions(actionbaud);
         deviceMenu->addMenu(baudrateMenu);
         deviceMenu->addSeparator();
@@ -550,7 +550,10 @@ void Dashboard::switchLanguage(QAction* action)
 
 void Dashboard::setCurrentBaudrate(QAction* action)
 {
-    this->m_baudrate = action->text().toInt();
+    if (action->text() == "custom")
+        qDebug("TODO");
+    else
+        this->m_baudrate = action->text().toInt();
 }
 
 int Dashboard::getCurrentBaudrate()
