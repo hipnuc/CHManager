@@ -8,7 +8,10 @@
 #define CHCONSOLE_H
 
 #include <QWidget>
+#include "protocol/kptl.h"
+#include "protocol/chhi22x.h"
 
+class QLabel;
 class QPushButton;
 class QPlainTextEdit;
 class QLineEdit;
@@ -19,6 +22,7 @@ class CHConsole : public QWidget
 public:
     explicit CHConsole(QWidget *parent = nullptr);
     void updateTextdata(QByteArray array);
+    void transaction();
 
 private:
     QPlainTextEdit *m_console;
@@ -27,8 +31,20 @@ private:
     QPushButton *timestamp_btn;
     QPushButton *filter_btn;
     QLineEdit *filter_text;
+    QTimer *timer;
+    imu_data_t imublock;
+    bool filter_flags = false;
+    bool pc_time_flags = false;
 
     void setupLayout();
+    void setupBinder();
+
+private slots:
+    void clearTextEdit();
+    void lockTextEdit();
+    void formatPackets();
+    void filterPackets();
+    void showPCtimestamp();
 };
 
 #endif // CHCONSOLE_H
