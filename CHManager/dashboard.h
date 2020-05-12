@@ -9,8 +9,6 @@
 
 #include "device/chserialdevice.h"
 #include "console/chconsole.h"
-#include "protocol/kptl.h"
-#include "protocol/chhi22x.h"
 
 #include <QMainWindow>
 #include <QTranslator>
@@ -41,10 +39,8 @@ private:
     QTranslator* translator;
     CHSerialdevice ch_dev;
     int m_baudrate = 115200;
-    imu_data_t imublock;
 
     CHConsole *console;
-    QTimer *imubinder_timer;
 
 protected:
 
@@ -55,7 +51,6 @@ private slots:
     void closeSerialPort();
     void setCurrentBaudrate(QAction* action);
     void readData();
-    void readIMUdata();
     void showConsole();
     void showCustomchart();
 

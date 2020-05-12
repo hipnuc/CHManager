@@ -40,10 +40,8 @@ Dashboard::~Dashboard()
 void Dashboard::setupDataBinder()
 {
     console = new CHConsole();
-    imubinder_timer = new QTimer();
 
     connect(ch_dev.m_serial, SIGNAL(readyRead()), this, SLOT(readData()));
-    connect(imubinder_timer, SIGNAL(timeout()), this, SLOT(readIMUdata()));
 }
 
 void Dashboard::setupMenuBar()
@@ -112,6 +110,7 @@ void Dashboard::setupMenuBar()
         action->setStatusTip(tr("Updates the Firmware"));
         deviceMenu->addAction(action);
         deviceToolBar->addAction(action);
+        deviceToolBar->addSeparator();
         deviceMenu->addSeparator();
 
         QMenu *languageMenu = new QMenu(tr("Language"));
@@ -139,6 +138,14 @@ void Dashboard::setupMenuBar()
         langGroup->addAction(action);
 
         connect(langGroup, SIGNAL(triggered(QAction *)), this, SLOT(switchLanguage(QAction *)));
+
+        const QIcon assistant_Icon = QIcon::fromTheme("", QIcon(":/images/resource/usb_micro_b_32px.png"));
+        action = new QAction();
+        action->setCheckable(true);
+        action->setIcon(assistant_Icon);
+        action->setStatusTip(tr("Serial Assistant"));
+        action->setStatusTip(tr("Serial Assistant"));
+        deviceToolBar->addAction(action);
 
         const QIcon exit_Icon = QIcon::fromTheme("", QIcon(":/images/resource/shutdown_32px.png"));
         deviceMenu->addAction(exit_Icon, tr("Exit"), this, &QWidget::close);
@@ -482,22 +489,16 @@ void Dashboard::readData()
             kptl_decode(ch);
         }
     }
-
-    this->console->updateTextdata(array);
 }
 
 void Dashboard::showConsole()
 {
-    this->setCentralWidget(this->console);
-}
-
-void Dashboard::readIMUdata()
-{
-    dump_rf_data(&imublock);
-    qDebug("eul: %f %f %f\r\n", imublock.eul[0], imublock.eul[1], imublock.eul[2]);
+    //this->setCentralWidget(this->console);
+    console->show();
+    this->console->transaction();
 }
 
 void Dashboard::showCustomchart()
 {
-    imubinder_timer->start(100);
+
 }
