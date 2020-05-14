@@ -10,8 +10,6 @@
 
 CHConsole::CHConsole(QWidget *parent) : QWidget(parent)
 {
-    setMinimumSize(600, 400);
-
     m_console = new QPlainTextEdit();
     m_console->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     m_console->centerOnScroll();
