@@ -4,7 +4,7 @@
 #
 #/
 
-QT       += core gui serialport
+QT       += core gui serialport svg
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -24,6 +24,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     console/chconsole.cpp \
     device/chserialdevice.cpp \
+    dock/chinstrumentcluster.cpp \
     dock/chrealtime.cpp \
     main.cpp \
     dashboard.cpp \
@@ -34,6 +35,7 @@ HEADERS += \
     console/chconsole.h \
     device/chserialdevice.h \
     dashboard.h \
+    dock/chinstrumentcluster.h \
     dock/chrealtime.h \
     protocol/chhi22x.h \
     protocol/kptl.h
