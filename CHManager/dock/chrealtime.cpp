@@ -1,3 +1,11 @@
+//SPDX-License-Inentifier: Apache-2.0
+/*
+ * HiPNUC CHManager Real Time View
+ *
+ * Copyright (C) 2016-2020 HiPNUC All rights reserved.
+ *
+ */
+
 #include "chrealtime.h"
 
 #include <QGroupBox>
@@ -17,6 +25,8 @@ CHRealTime::CHRealTime(QWidget *parent) : QWidget(parent)
     tableWidget->setColumnCount(5);
     tableWidget->verticalHeader()->setVisible(false);
     tableWidget->horizontalHeader()->setVisible(false);
+
+    setFixedHeight(320);
 
     QString title1="Quaternion,W,X,Y,Z";
     QString title2="Euler Angle,Pitch,Roll,Yaw";

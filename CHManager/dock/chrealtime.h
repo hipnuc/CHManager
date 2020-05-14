@@ -1,3 +1,11 @@
+//SPDX-License-Inentifier: Apache-2.0
+/*
+ * HiPNUC CHManager Real Time View
+ *
+ * Copyright (C) 2016-2020 HiPNUC All rights reserved.
+ *
+ */
+
 #ifndef CHREALTIME_H
 #define CHREALTIME_H
 
