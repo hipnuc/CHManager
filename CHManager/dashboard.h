@@ -10,6 +10,7 @@
 #include "device/chserialdevice.h"
 #include "console/chconsole.h"
 #include "dock/chrealtime.h"
+#include "dock/chinstrumentcluster.h"
 
 #include <QMainWindow>
 #include <QTranslator>
@@ -53,6 +54,8 @@ private:
 
     CHConsole *console;
     CHRealTime *realdata;
+    CHAttitudeIndicator *attitude;
+    CHCompass *compass;
 
 protected:
 

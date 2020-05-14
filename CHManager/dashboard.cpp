@@ -53,9 +53,17 @@ void Dashboard::setupDataBinder()
 {
     console = new CHConsole();
     realdata = new CHRealTime();
+    attitude = new CHAttitudeIndicator();
+    compass = new CHCompass();
 
     realdata_dock->setWidget(realdata);
     realdata->transaction();
+
+    attitude_dock->setWidget(attitude);
+    attitude->transaction();
+
+    heading_dock->setWidget(compass);
+    compass->transaction();
 
     connect(ch_dev.m_serial, SIGNAL(readyRead()), this, SLOT(readData()));
 }
@@ -288,6 +296,7 @@ void Dashboard::setupMenuBar()
        action = dockWidgetMenu->addAction(heading_Icon, tr("Heading"));
        action->setObjectName("act_heading");
        action->setCheckable(true);
+       action->setChecked(true);
        action->setStatusTip(tr("Creates a Heading View with Euler Angle"));
        viewToolBar->addAction(action);
        connect(action, SIGNAL(triggered(bool)), this, SLOT(docktoggleView(bool)));
@@ -296,6 +305,7 @@ void Dashboard::setupMenuBar()
        action = dockWidgetMenu->addAction(attitude_Icon, tr("Attitude"));
        action->setObjectName("act_attitude");
        action->setCheckable(true);
+       action->setChecked(true);
        action->setStatusTip(tr("Show a Attitude View"));
        viewToolBar->addAction(action);
        connect(action, SIGNAL(triggered(bool)), this, SLOT(docktoggleView(bool)));
@@ -473,18 +483,16 @@ void Dashboard::setupStatusBar()
 void Dashboard::setupDockWindows()
 {
     realdata_dock = new QDockWidget(tr("Real Time Packects"), this);
-    realdata_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
-    addDockWidget(Qt::RightDockWidgetArea, realdata_dock);
+    realdata_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea| Qt::TopDockWidgetArea);
+    addDockWidget(Qt::TopDockWidgetArea, realdata_dock);
 
     heading_dock = new QDockWidget(tr("Heading"), this);
-    heading_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
-    addDockWidget(Qt::RightDockWidgetArea, heading_dock);
-    heading_dock->hide();
+    heading_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea | Qt::TopDockWidgetArea);
+    addDockWidget(Qt::TopDockWidgetArea, heading_dock);
 
     attitude_dock = new QDockWidget(tr("2D Attitude"), this);
-    attitude_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
-    addDockWidget(Qt::RightDockWidgetArea, attitude_dock);
-    attitude_dock->hide();
+    attitude_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea | Qt::TopDockWidgetArea);
+    addDockWidget(Qt::TopDockWidgetArea, attitude_dock);
 
     threed_dock = new QDockWidget(tr("3D Attitude"), this);
     threed_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
