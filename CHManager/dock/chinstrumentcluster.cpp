@@ -82,8 +82,7 @@ void CHAttitudeIndicator::paintEvent(QPaintEvent *event)
     painter.translate(width() / 2, height() / 2);
     painter.rotate(m_roll);
 
-    //FIXME: AHRS output left-hand values
-    double pitch_tem = -m_pitch;
+    double pitch_tem = m_pitch;
 
     //draw background
     {
@@ -261,7 +260,7 @@ void CHAttitudeIndicator::updateAttitudeIndicator()
 
 void CHAttitudeIndicator::transaction()
 {
-    adi_timer->start(100);
+    adi_timer->start(25);
 }
 
 CHCompass::CHCompass(QWidget *parent) : QWidget(parent)
