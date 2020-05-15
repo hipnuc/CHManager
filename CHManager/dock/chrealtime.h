@@ -29,7 +29,7 @@ private:
     QLabel *statistical;
     QTimer *timer;
     QTableWidget *tableWidget;
-    imu_data_t imublock;
+    id0x91_t imublock;
 
 private slots:
     void realtimeDataview();

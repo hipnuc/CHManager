@@ -32,7 +32,7 @@ private:
     QPushButton *filter_btn;
     QLineEdit *filter_text;
     QTimer *timer;
-    imu_data_t imublock;
+    id0x91_t imublock;
     bool filter_flags = false;
     bool pc_time_flags = false;
 

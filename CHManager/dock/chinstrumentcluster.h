@@ -39,7 +39,7 @@ private:
     float m_roll;
     float m_pitch;
     QTimer *adi_timer;
-    imu_data_t imublock;
+    id0x91_t imublock;
 
 private slots:
     void updateAttitudeIndicator();
@@ -67,7 +67,7 @@ private:
     //Yaw angle (in degree)
     double  m_yaw;
     QTimer *compass_timer;
-    imu_data_t imublock;
+    id0x91_t imublock;
 
 private slots:
     void updateCompass();

@@ -29,7 +29,7 @@ CHRealTime::CHRealTime(QWidget *parent) : QWidget(parent)
     setFixedHeight(320);
 
     QString title1="Quaternion,W,X,Y,Z";
-    QString title2="Euler Angle,Pitch,Roll,Yaw";
+    QString title2="Euler Angle,Roll,Pitch,Yaw";
     QString title3="Acceleration,X,Y,Z";
     QString title4="Gyroscope,X,Y,Z";
     QString title5="Magnetic field,X,Y,Z";
@@ -100,7 +100,7 @@ void CHRealTime::realtimeDataview()
     dump_rf_data(&imublock);
 
     for (int i = 0; i < 4; i++) {
-        QString item = QString::number(imublock.q[i], 'f', 3);
+        QString item = QString::number(imublock.quat[i], 'f', 3);
         QTableWidgetItem *protoitem = new QTableWidgetItem(item);
         protoitem->setTextAlignment(Qt::AlignCenter);
         protoitem->setTextAlignment(Qt::AlignVCenter);
@@ -113,34 +113,34 @@ void CHRealTime::realtimeDataview()
         protoitem->setTextAlignment(Qt::AlignCenter);
         tableWidget->setItem(3, i + 1, protoitem);
         if(i == 2)
-            tableWidget->setItem(3, 4, new QTableWidgetItem("degree"));
+            tableWidget->setItem(3, 4, new QTableWidgetItem("°"));
     }
 
     for (int i = 0; i < 3; i++){
-        QString item = QString::number(imublock.acc[i]);
+        QString item = QString::number(imublock.acc[i], 'f', 3);
         QTableWidgetItem *protoitem = new QTableWidgetItem(item);
         protoitem->setTextAlignment(Qt::AlignCenter);
         tableWidget->setItem(5, i + 1, protoitem);
         if(i == 2)
-            tableWidget->setItem(5, 4, new QTableWidgetItem("0.001G"));
+            tableWidget->setItem(5, 4, new QTableWidgetItem("G"));
     }
 
     for (int i = 0; i < 3; i++){
-        QString item = QString::number(imublock.gyr[i]);
+        QString item = QString::number(imublock.gyr[i], 'f', 3);
         QTableWidgetItem *protoitem = new QTableWidgetItem(item);
         protoitem->setTextAlignment(Qt::AlignCenter);
         tableWidget->setItem(7, i + 1, protoitem);
         if(i == 2)
-            tableWidget->setItem(7, 4, new QTableWidgetItem("0.1°/s"));
+            tableWidget->setItem(7, 4, new QTableWidgetItem("°/s"));
     }
 
     for (int i = 0; i < 3; i++){
-        QString item = QString::number(imublock.mag[i]);
+        QString item = QString::number(imublock.mag[i], 'f', 3);
         QTableWidgetItem * protoitem = new QTableWidgetItem(item);
         protoitem->setTextAlignment(Qt::AlignCenter);
         tableWidget->setItem(9, i + 1, protoitem);
         if(i == 2)
-            tableWidget->setItem(9, 4, new QTableWidgetItem("0.001Gauss"));
+            tableWidget->setItem(9, 4, new QTableWidgetItem("uT"));
     }
 }
 
