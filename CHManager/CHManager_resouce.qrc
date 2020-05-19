@@ -65,4 +65,14 @@
         <file>CHManager_en_US.qm</file>
         <file>CHManager_zh_CN.qm</file>
     </qresource>
+    <qresource prefix="/qfi">
+        <file>resource/adi/adi.svg</file>
+        <file>resource/adi/adi_back.svg</file>
+        <file>resource/adi/adi_case.svg</file>
+        <file>resource/adi/adi_face.svg</file>
+        <file>resource/adi/adi_ring.svg</file>
+        <file>resource/hsi/hsi.svg</file>
+        <file>resource/hsi/hsi_case.svg</file>
+        <file>resource/hsi/hsi_face.svg</file>
+    </qresource>
 </RCC>

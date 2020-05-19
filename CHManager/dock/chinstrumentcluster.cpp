@@ -1,8 +1,9 @@
-//SPDX-License-Inentifier: Apache-2.0 and GPLv2
+//SPDX-License-Inentifier: Apache-2.0 and MIT
 /*
  * HiPNUC CHManager Instrument Clusters used to make
  * the Attitude Indicator widget and Compass widget.
  *
+ * Copyright (C) 2018 Marek M. Cel, Dave Culp
  * Copyright (C) 2016-2020 HiPNUC All rights reserved.
  *
  */
@@ -11,32 +12,136 @@
 #include <math.h>
 
 #include <QTimer>
-#include <QPen>
-#include <QPainter>
 
-CHAttitudeIndicator::CHAttitudeIndicator(QWidget *parent) : QWidget(parent)
+/**
+ * @brief CHInstrumentWidget::CHInstrumentWidget - Constructs a flight instrument with
+ *                                                 a title and a parent.
+ * @param title
+ * @param parent
+ */
+CHInstrumentWidget::CHInstrumentWidget(const QString &title, QWidget *parent)
+    : QWidget(parent), m_adi(0), layout(0)
 {
-    m_sizeMin = 200;
-    m_sizeMax = 600;
-    m_offset = 2;
-    m_size = m_sizeMin - 2*m_offset;
+    QGraphicsView *graphics = nullptr;
+    this->resize(400, 300);
 
-    setMinimumSize(m_sizeMin, m_sizeMin);
-    setMaximumSize(m_sizeMax, m_sizeMax);
-    resize(m_sizeMin, m_sizeMin);
+    int result = QString::compare(title, "AttitudeIndicator", Qt::CaseInsensitive);
 
-    setFocusPolicy(Qt::NoFocus);
+    this->result = result;
+    if (!result) {
+        graphics = new CHAttitudeIndicator(this);
+        m_adi = (CHAttitudeIndicator *)graphics;
+    } else {
+        graphics = new CHCompass(this);
+        m_hsi = (CHCompass *)graphics;
+    }
 
-    m_roll  = 0.0;
-    m_pitch = 0.0;
+    graphics->setObjectName(title);
+    graphics->setEnabled(false);
+    graphics->setGeometry(QRect(70, 40, 51, 31));
+    graphics->setFrameShape(QFrame::NoFrame);
+    graphics->setFrameShadow(QFrame::Plain);
+    graphics->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    graphics->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    graphics->setInteractive(false);
 
-    adi_timer = new QTimer();
-    connect(adi_timer, SIGNAL(timeout()), this, SLOT(updateAttitudeIndicator()),  Qt::QueuedConnection);
+    layout = new CHInstrumentLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(graphics);
+
+    setLayout(layout);
+
+    timer = new QTimer();
+    connect(timer, SIGNAL(timeout()), this, SLOT(updateView()),  Qt::QueuedConnection);
+}
+
+CHInstrumentWidget::~CHInstrumentWidget()
+{
+
+}
+
+void CHInstrumentWidget::setData(float roll, float pitch, float yaw)
+{
+    if(result)
+        m_hsi->setYaw(yaw);
+    else
+        m_adi->setData(roll, pitch);
+}
+
+void CHInstrumentWidget::updateView()
+{
+    dump_rf_data(&imublock);
+
+    this->setData(imublock.eul[0], imublock.eul[1], imublock.eul[2]);
+}
+
+void CHInstrumentWidget::transaction()
+{
+    timer->start(100);
+}
+
+/**
+ * @brief CHAttitudeIndicator::CHAttitudeIndicator
+ * @param parent
+ */
+CHAttitudeIndicator::CHAttitudeIndicator(QWidget *parent) :
+    QGraphicsView(parent),
+    m_scene(nullptr),
+    m_itemBack(nullptr),
+    m_itemFace (nullptr),
+    m_itemRing (nullptr),
+    m_itemCase(nullptr),
+    m_roll(0.0f),
+    m_pitch(0.0f),
+    m_faceDeltaX_new(0.0f),
+    m_faceDeltaX_old(0.0f),
+    m_faceDeltaY_new(0.0f),
+    m_faceDeltaY_old(0.0f),
+    m_scaleX(1.0f),
+    m_scaleY(1.0f),
+    m_originalHeight(240),
+    m_originalWidth(240),
+    m_originalPixPerDeg(1.7f),
+    m_originalAdiCtr(120.0f, 120.0f),
+    m_backZ(-30),
+    m_faceZ(-20),
+    m_ringZ(-10),
+    m_caseZ(10) {
+
+    reset();
+
+    m_scene = new QGraphicsScene(this);
+    setScene(m_scene);
+
+    m_scene->clear();
+    init();
 }
 
 CHAttitudeIndicator::~CHAttitudeIndicator()
 {
+    if (m_scene != nullptr) {
+        m_scene->clear();
+        delete m_scene;
+        m_scene = nullptr;
+    }
 
+    reset();
+}
+
+void CHAttitudeIndicator::reinit()
+{
+    if (m_scene) {
+        m_scene->clear();
+        init();
+    }
+}
+
+void CHAttitudeIndicator::update()
+{
+    updateView();
+
+    m_faceDeltaX_old  = m_faceDeltaX_new;
+    m_faceDeltaY_old  = m_faceDeltaY_new;
 }
 
 void CHAttitudeIndicator::setData(float roll, float pitch)
@@ -44,417 +149,401 @@ void CHAttitudeIndicator::setData(float roll, float pitch)
     m_roll = roll;
     m_pitch = pitch;
 
-    if (m_roll < -180.0f ) m_roll = -180.0f;
-    if (m_roll >  180.0f ) m_roll =  180.0f;
+    if(m_roll < -180.0f) m_roll = -180.0f;
+    if(m_roll >  180.0f) m_roll =  180.0f;
 
-    if (m_pitch < -90.0f ) m_pitch = -90.0f;
-    if (m_pitch >  90.0f ) m_pitch =  90.0f;
+    if(m_pitch < -25.0f) m_pitch = -25.0f;
+    if(m_pitch >  25.0f) m_pitch =  25.0f;
 
     update();
 }
 
 void CHAttitudeIndicator::resizeEvent(QResizeEvent *event)
 {
-    Q_UNUSED(event);
-    m_size = qMin(width(),height()) - 2*m_offset;
+    QGraphicsView::resizeEvent(event);
+    reinit();
 }
 
-
-void CHAttitudeIndicator::paintEvent(QPaintEvent *event)
+void CHAttitudeIndicator::init()
 {
-    Q_UNUSED(event);
-    QPainter painter(this);
+    m_scaleX = (float)width()  / (float)m_originalWidth;
+    m_scaleY = (float)height() / (float)m_originalHeight;
 
-    QBrush bgSky(QColor(48,172,220));
-    QBrush bgGround(QColor(247,168,21));
+    reset();
 
-    QPen   whitePen(Qt::white);
-    QPen   blackPen(Qt::black);
-    QPen   pitchPen(Qt::white);
-    QPen   pitchZero(Qt::green);
+    m_itemBack = new QGraphicsSvgItem(":/qfi/resource/adi/adi_back.svg");
+    m_itemBack->setCacheMode(QGraphicsItem::NoCache);
+    m_itemBack->setZValue(m_backZ);
+    m_itemBack->setTransform(QTransform::fromScale(m_scaleX, m_scaleY), true);
+    m_itemBack->setTransformOriginPoint(m_originalAdiCtr);
+    m_scene->addItem(m_itemBack);
 
-    whitePen.setWidth(2);
-    blackPen.setWidth(2);
-    pitchZero.setWidth(3);
+    m_itemFace = new QGraphicsSvgItem(":/qfi/resource/adi/adi_face.svg");
+    m_itemFace->setCacheMode(QGraphicsItem::NoCache);
+    m_itemFace->setZValue(m_faceZ);
+    m_itemFace->setTransform(QTransform::fromScale(m_scaleX, m_scaleY), true);
+    m_itemFace->setTransformOriginPoint(m_originalAdiCtr);
+    m_scene->addItem(m_itemFace);
 
-    painter.setRenderHint(QPainter::Antialiasing);
+    m_itemRing = new QGraphicsSvgItem(":/qfi/resource/adi/adi_ring.svg");
+    m_itemRing->setCacheMode(QGraphicsItem::NoCache);
+    m_itemRing->setZValue(m_ringZ);
+    m_itemRing->setTransform(QTransform::fromScale(m_scaleX, m_scaleY), true);
+    m_itemRing->setTransformOriginPoint(m_originalAdiCtr);
+    m_scene->addItem(m_itemRing);
 
-    painter.translate(width() / 2, height() / 2);
-    painter.rotate(m_roll);
+    m_itemCase = new QGraphicsSvgItem(":/qfi/resource/adi/adi_case.svg");
+    m_itemCase->setCacheMode(QGraphicsItem::NoCache);
+    m_itemCase->setZValue(m_caseZ);
+    m_itemCase->setTransform(QTransform::fromScale(m_scaleX, m_scaleY), true);
+    m_scene->addItem(m_itemCase);
 
-    double pitch_tem = m_pitch;
+    centerOn(width() / 2.0f, height() / 2.0f);
 
-    //draw background
-    {
-        int y_min, y_max;
+    updateView();
+}
 
-        y_min = m_size/2*-40.0/45.0;
-        y_max = m_size/2* 40.0/45.0;
+void CHAttitudeIndicator::reset()
+{
+    m_itemBack = nullptr;
+    m_itemFace = nullptr;
+    m_itemRing = nullptr;
+    m_itemCase = nullptr;
 
-        int y = m_size/2*pitch_tem/45.;
-        if( y < y_min ) y = y_min;
-        if( y > y_max ) y = y_max;
+    m_roll  = 0.0f;
+    m_pitch = 0.0f;
 
-        int x = sqrt(m_size*m_size/4 - y*y);
-        qreal gr = atan((double)(y)/x);
-        gr = gr * 180./3.1415926;
+    m_faceDeltaX_new = 0.0f;
+    m_faceDeltaX_old = 0.0f;
+    m_faceDeltaY_new = 0.0f;
+    m_faceDeltaY_old = 0.0f;
+}
 
-        painter.setPen(blackPen);
-        painter.setBrush(bgSky);
-        painter.drawChord(-m_size/2, -m_size/2, m_size, m_size,
-                          gr*16, (180-2*gr)*16);
+void CHAttitudeIndicator::updateView()
+{
+    m_scaleX = (float)width()  / (float)m_originalWidth;
+    m_scaleY = (float)height() / (float)m_originalHeight;
 
-        painter.setBrush(bgGround);
-        painter.drawChord(-m_size/2, -m_size/2, m_size, m_size,
-                          gr*16, -(180+2*gr)*16);
+    m_itemBack->setRotation(- m_roll);
+    m_itemFace->setRotation(- m_roll);
+    m_itemRing->setRotation(- m_roll);
+
+    float roll_rad = M_PI * m_roll / 180.0;
+
+    float delta  = m_originalPixPerDeg * m_pitch;
+
+    m_faceDeltaX_new = m_scaleX * delta * sin(roll_rad);
+    m_faceDeltaY_new = m_scaleY * delta * cos(roll_rad);
+
+    m_itemFace->moveBy(m_faceDeltaX_new - m_faceDeltaX_old, m_faceDeltaY_new - m_faceDeltaY_old);
+
+    m_scene->update();
+}
+
+CHCompass::CHCompass(QWidget *parent) : QGraphicsView (parent),
+    m_scene (nullptr),
+    m_itemFace (nullptr),
+    m_itemCase (nullptr),
+    m_yaw (0.0f),
+    m_scaleX (1.0f),
+    m_scaleY (1.0f),
+    m_originalHeight (240),
+    m_originalWidth  (240),
+    m_originalHsiCtr (120.0f , 120.0f),
+    m_faceZ (-20),
+    m_caseZ (10) {
+
+    reset();
+
+    m_scene = new QGraphicsScene(this);
+    setScene(m_scene);
+
+    m_scene->clear();
+    init();
+}
+
+CHCompass::~CHCompass()
+{
+    if (m_scene != nullptr) {
+        m_scene->clear();
+        delete m_scene;
+        m_scene = nullptr;
     }
 
-    //set mask
-    QRegion maskRegion(-m_size/2, -m_size/2, m_size, m_size, QRegion::Ellipse);
-    painter.setClipRegion(maskRegion);
+    reset();
+}
 
-    //draw pitch lines & marker
-    {
-        int x, y, x1, y1;
-        int textWidth;
-        double p, r;
-        int ll = m_size/8, l;
-        int fontSize = 8;
-        QString s;
-
-        pitchPen.setWidth(2);
-        painter.setFont(QFont("", fontSize));
-
-        // draw lines
-        for(int i = -9; i <= 9; i++) {
-            p = i * 10;
-            s = QString("%1").arg(-p);
-
-            if( i % 3 == 0 )
-                l = ll;
-            else
-                l = ll/2;
-
-            if( i == 0 ) {
-                painter.setPen(pitchZero);
-                l = l * 1.8;
-            } else {
-                painter.setPen(pitchPen);
-            }
-
-            y = m_size/2*p/45.0 - m_size/2*pitch_tem/45.;
-            x = l;
-
-            r = sqrt(x*x + y*y);
-            if( r > m_size/2 ) continue;
-
-            painter.drawLine(QPointF(-l, 1.0*y), QPointF(l, 1.0*y));
-            textWidth = 100;
-
-            if( i % 3 == 0 && i != 0 ) {
-                painter.setPen(QPen(Qt::white));
-
-                x1 = -x - 2 - textWidth;
-                y1 = y - fontSize/2 - 1;
-                painter.drawText(QRectF(x1, y1, textWidth, fontSize+2),
-                                 Qt::AlignRight|Qt::AlignVCenter, s);
-            }
-        }
-
-        // draw marker
-        int     markerSize = m_size/20;
-        float   fx1, fy1, fx2, fy2, fx3, fy3;
-
-        painter.setBrush(QBrush(Qt::red));
-        painter.setPen(Qt::NoPen);
-
-        fx1 = markerSize;
-        fy1 = 0;
-        fx2 = fx1 + markerSize;
-        fy2 = -markerSize/2;
-        fx3 = fx1 + markerSize;
-        fy3 = markerSize/2;
-
-        QPointF points[3] = {
-            QPointF(fx1, fy1),
-            QPointF(fx2, fy2),
-            QPointF(fx3, fy3)
-        };
-        painter.drawPolygon(points, 3);
-
-        QPointF points2[3] = {
-            QPointF(-fx1, fy1),
-            QPointF(-fx2, fy2),
-            QPointF(-fx3, fy3)
-        };
-        painter.drawPolygon(points2, 3);
-    }
-    // draw roll degree lines
-    {
-        int     nRollLines = 36;
-        float   rotAng = 360.0 / nRollLines;
-        int     rollLineLeng = m_size/25;
-        double  fx1, fy1, fx2, fy2;
-        int     fontSize = 8;
-        QString s;
-
-        blackPen.setWidth(1);
-        painter.setPen(blackPen);
-        painter.setFont(QFont("", fontSize));
-
-        for(int i=0; i<nRollLines; i++) {
-            if( i < nRollLines/2 )
-                s = QString("%1").arg(-i*rotAng);
-            else
-                s = QString("%1").arg(360-i*rotAng);
-
-            fx1 = 0;
-            fy1 = -m_size/2 + m_offset;
-            fx2 = 0;
-
-            if( i % 3 == 0 ) {
-                fy2 = fy1 + rollLineLeng;
-                painter.drawLine(QPointF(fx1, fy1), QPointF(fx2, fy2));
-
-                fy2 = fy1 + rollLineLeng+2;
-                painter.drawText(QRectF(-50, fy2, 100, fontSize+2),
-                                 Qt::AlignCenter, s);
-            } else {
-                fy2 = fy1 + rollLineLeng/2;
-                painter.drawLine(QPointF(fx1, fy1), QPointF(fx2, fy2));
-            }
-
-            painter.rotate(rotAng);
-        }
-    }
-    // draw roll marker
-    {
-        int     rollMarkerSize = m_size / 25;
-        double  fx1, fy1, fx2, fy2, fx3, fy3;
-
-        painter.rotate(-m_roll);
-        painter.setBrush(QBrush(Qt::black));
-
-        fx1 = 0;
-        fy1 = -m_size/2 + m_offset;
-        fx2 = fx1 - rollMarkerSize/2;
-        fy2 = fy1 + rollMarkerSize;
-        fx3 = fx1 + rollMarkerSize/2;
-        fy3 = fy1 + rollMarkerSize;
-
-        QPointF points[3] = {
-            QPointF(fx1, fy1),
-            QPointF(fx2, fy2),
-            QPointF(fx3, fy3)
-        };
-        painter.drawPolygon(points, 3);
+void CHCompass::reinit()
+{
+    if (m_scene) {
+        m_scene->clear();
+        init();
     }
 }
 
-void CHAttitudeIndicator::updateAttitudeIndicator()
+void CHCompass::update()
 {
-    dump_rf_data(&imublock);
-
-    setData(imublock.eul[0], imublock.eul[1]);
-}
-
-void CHAttitudeIndicator::transaction()
-{
-    adi_timer->start(25);
-}
-
-CHCompass::CHCompass(QWidget *parent) : QWidget(parent)
-{
-    m_sizeMin = 200;
-    m_sizeMax = 600;
-    m_offset = 2;
-    m_size = m_sizeMin - 2*m_offset;
-
-    setMinimumSize(m_sizeMin, m_sizeMin);
-    setMaximumSize(m_sizeMax, m_sizeMax);
-    resize(m_sizeMin, m_sizeMin);
-
-    setFocusPolicy(Qt::NoFocus);
-
-    m_yaw  = 0.0;
-
-    compass_timer = new QTimer();
-    connect(compass_timer, SIGNAL(timeout()), this, SLOT(updateCompass()), Qt::QueuedConnection);
-}
-
-void CHCompass::resizeEvent(QResizeEvent *event)
-{
-    Q_UNUSED(event);
-
-    m_size = qMin(width(),height()) - 2 * m_offset;
-}
-
-void CHCompass::paintEvent(QPaintEvent *)
-{
-    QPainter painter(this);
-
-    QBrush bgGround(QColor(30,30,30));
-
-    QPen   whitePen(Qt::white);
-    QPen   blackPen(Qt::white);
-
-    whitePen.setWidth(2);
-
-    painter.setRenderHint(QPainter::Antialiasing);
-
-    painter.translate(width() / 2, height() / 2);
-
-    // draw background
-    {
-        painter.setPen(blackPen);
-        painter.setBrush(bgGround);
-
-        painter.drawEllipse(-m_size/2, -m_size/2, m_size, m_size);
-    }
-
-    // draw yaw lines
-    {
-        int     nyawLines = 36;
-        float   rotAng = 360.0 / nyawLines;
-        int     yawLineLeng = m_size/25;
-        double  fx1, fy1, fx2, fy2;
-        int     fontSize = 8;
-        QString s;
-
-        blackPen.setWidth(1);
-        painter.setPen(blackPen);
-
-        for(int i=0; i<nyawLines; i++) {
-
-            if( i == 0 ) {
-                s = "N";
-                painter.setPen(whitePen);
-
-                painter.setFont(QFont("", fontSize*1.3));
-            } else if ( i == 9 ) {
-                s = "W";
-                painter.setPen(blackPen);
-
-                painter.setFont(QFont("", fontSize*1.3));
-            } else if ( i == 18 ) {
-                s = "S";
-                painter.setPen(whitePen);
-
-                painter.setFont(QFont("", fontSize*1.3));
-            } else if ( i == 27 ) {
-                s = "E";
-                painter.setPen(blackPen);
-
-                painter.setFont(QFont("", fontSize*1.3));
-            } else {
-                s = QString("%1").arg(i*rotAng);
-                painter.setPen(blackPen);
-
-                painter.setFont(QFont("", fontSize));
-            }
-
-            fx1 = 0;
-            fy1 = -m_size/2 + m_offset;
-            fx2 = 0;
-
-            if( i % 3 == 0 ) {
-                fy2 = fy1 + yawLineLeng;
-                painter.drawLine(QPointF(fx1, fy1), QPointF(fx2, fy2));
-
-                fy2 = fy1 + yawLineLeng+4;
-                painter.drawText(QRectF(-50, fy2, 100, fontSize+2),
-                                 Qt::AlignCenter, s);
-            } else {
-                fy2 = fy1 + yawLineLeng/2;
-                painter.drawLine(QPointF(fx1, fy1), QPointF(fx2, fy2));
-            }
-
-            painter.rotate(-rotAng);
-        }
-    }
-    // draw S/N arrow
-    {
-        int     arrowWidth = m_size/5;
-        double  fx1, fy1, fx2, fy2, fx3, fy3;
-
-        fx1 = 0;
-        fy1 = -m_size/2 + m_offset + m_size/25 + 15;
-        fx2 = -arrowWidth/2;
-        fy2 = 0;
-        fx3 = arrowWidth/2;
-        fy3 = 0;
-
-        painter.setPen(Qt::NoPen);
-
-        painter.setBrush(QBrush(Qt::red));
-        QPointF pointsN[3] = {
-            QPointF(fx1, fy1),
-            QPointF(fx2, fy2),
-            QPointF(fx3, fy3)
-        };
-        painter.drawPolygon(pointsN, 3);
-
-
-        fx1 = 0;
-        fy1 = m_size/2 - m_offset - m_size/25 - 15;
-        fx2 = -arrowWidth/2;
-        fy2 = 0;
-        fx3 = arrowWidth/2;
-        fy3 = 0;
-
-        painter.setBrush(QBrush(Qt::blue));
-        QPointF pointsS[3] = {
-            QPointF(fx1, fy1),
-            QPointF(fx2, fy2),
-            QPointF(fx3, fy3)
-        };
-        painter.drawPolygon(pointsS, 3);
-    }
-
-    // draw yaw marker
-    {
-        int     yawMarkerSize = m_size/12;
-        double  fx1, fy1, fx2, fy2, fx3, fy3;
-
-        painter.rotate(-m_yaw);
-        painter.setBrush(QBrush(QBrush(Qt::red)));
-
-        fx1 = 0;
-        fy1 = -m_size/2 + m_offset;
-        fx2 = fx1 - yawMarkerSize/2;
-        fy2 = fy1 + yawMarkerSize;
-        fx3 = fx1 + yawMarkerSize/2;
-        fy3 = fy1 + yawMarkerSize;
-
-        QPointF points[3] = {
-            QPointF(fx1, fy1),
-            QPointF(fx2, fy2),
-            QPointF(fx3, fy3)
-        };
-        painter.drawPolygon(points, 3);
-
-        painter.rotate(m_yaw);
-    }
+    updateView();
 }
 
 void CHCompass::setYaw(float yaw)
 {
     m_yaw = yaw;
-
-    if( m_yaw < 0   ) m_yaw = 360 + m_yaw;
-    if( m_yaw > 360 ) m_yaw = m_yaw - 360;
-
     update();
 }
 
-void CHCompass::updateCompass()
+void CHCompass::resizeEvent(QResizeEvent *event)
 {
-    dump_rf_data(&imublock);
+    QGraphicsView::resizeEvent(event);
 
-    setYaw(imublock.eul[2]);
+    reinit();
 }
 
-void CHCompass::transaction()
+void CHCompass::init()
 {
-    compass_timer->start(100);
+    m_scaleX = (float)width()  / (float)m_originalWidth;
+    m_scaleY = (float)height() / (float)m_originalHeight;
+
+    reset();
+
+    m_itemFace = new QGraphicsSvgItem(":/qfi/resource/hsi/hsi_face.svg");
+    m_itemFace->setCacheMode(QGraphicsItem::NoCache);
+    m_itemFace->setZValue(m_faceZ);
+    m_itemFace->setTransform(QTransform::fromScale(m_scaleX, m_scaleY), true);
+    m_itemFace->setTransformOriginPoint(m_originalHsiCtr);
+    m_scene->addItem(m_itemFace);
+
+    m_itemCase = new QGraphicsSvgItem(":/qfi/resource/hsi/hsi_case.svg");
+    m_itemCase->setCacheMode(QGraphicsItem::NoCache);
+    m_itemCase->setZValue(m_caseZ);
+    m_itemCase->setTransform(QTransform::fromScale(m_scaleX, m_scaleY), true);
+    m_scene->addItem(m_itemCase);
+
+    centerOn(width() / 2.0f , height() / 2.0f);
+
+    updateView();
+}
+
+void CHCompass::reset()
+{
+    m_itemFace = nullptr;
+    m_itemCase = nullptr;
+
+    m_yaw = 0.0f;
+}
+
+void CHCompass::updateView()
+{
+    m_itemFace->setRotation(-m_yaw);
+    m_scene->update();
+}
+
+/**
+ * @brief CHInstrumentLayout::CHInstrumentLayout
+ * @param parent
+ * @param spacing
+ */
+CHInstrumentLayout::CHInstrumentLayout(QWidget *parent, int spacing) : QLayout(parent)
+{
+    init(spacing);
+}
+
+CHInstrumentLayout::CHInstrumentLayout(int spacing) :
+    QLayout(0)
+{
+    init(spacing);
+}
+
+CHInstrumentLayout::~CHInstrumentLayout()
+{
+    if(m_item)
+        delete m_item;
+
+    m_item = 0;
+
+    if(m_rectLast)
+        delete m_rectLast;
+
+    m_rectLast = 0;
+
+    if(m_geometry)
+        delete m_geometry;
+
+    m_geometry = 0;
+}
+
+void CHInstrumentLayout::addItem(QLayoutItem *item)
+{
+    if(!hasItem()) replaceItem(item);
+}
+
+void CHInstrumentLayout::addWidget(QWidget *widget)
+{
+    if(!hasItem()) replaceItem(new QWidgetItem(widget));
+}
+
+int CHInstrumentLayout::count() const
+{
+    if(hasItem()) return 1;
+
+    return 0;
+}
+
+Qt::Orientations CHInstrumentLayout::expandingDirections() const
+{
+    return(Qt::Horizontal | Qt::Vertical);
+}
+
+QRect CHInstrumentLayout::geometry()
+{
+    return (QRect)(*m_geometry);
+}
+
+bool CHInstrumentLayout::hasHeightForWidth() const
+{
+    return false;
+}
+
+bool CHInstrumentLayout::hasItem() const
+{
+    return(m_item != 0);
+}
+
+QLayoutItem* CHInstrumentLayout::itemAt(int index) const
+{
+    if(index == 0)
+    {
+        if(hasItem()) return m_item;
+    }
+
+    return 0;
+}
+
+QSize CHInstrumentLayout::minimumSize() const
+{
+    return m_item->minimumSize();
+}
+
+QLayoutItem* CHInstrumentLayout::replaceItem(QLayoutItem *item)
+{
+    QLayoutItem *tempItem = 0;
+
+    if(hasItem()) tempItem = m_item;
+
+    m_item = item;
+
+    setGeometry(*m_geometry);
+
+    return tempItem;
+}
+
+void CHInstrumentLayout::setGeometry(const QRect &rect)
+{
+
+    if(!hasItem() || areRectsEqual(*m_rectLast, rect)) return;
+
+    setRectLast(rect);
+
+    QSize  properSize  = calculateProperSize(rect.size());
+    QPoint centerPoint = calculateCenterPnt(rect.size(), properSize);
+
+    m_item->setGeometry(QRect(centerPoint, properSize));
+
+    QRect *tempRect = m_geometry;
+
+    m_geometry = new QRect(centerPoint, properSize);
+
+    delete tempRect;
+
+    QLayout::setGeometry(*m_geometry);
+}
+
+QSize CHInstrumentLayout::sizeHint() const
+{
+    return m_item->minimumSize();
+}
+
+QLayoutItem* CHInstrumentLayout::take()
+{
+    QLayoutItem *tempItem = 0;
+
+    if(hasItem())
+    {
+        tempItem = m_item;
+        m_item = 0;
+    }
+
+    return tempItem;
+}
+
+QLayoutItem* CHInstrumentLayout::takeAt(int index)
+{
+    if(index == 0) return take();
+
+    return 0;
+}
+
+bool CHInstrumentLayout::areRectsEqual(const QRect &rect_1, const QRect &rect_2) const
+{
+    bool result = false;
+
+    if( (rect_1.x()      == rect_2.x()     )
+         &&(rect_1.y()      == rect_2.y()     )
+         &&(rect_1.height() == rect_2.height())
+         &&(rect_1.width()  == rect_2.width() ))
+    {
+        result = true;
+    }
+
+    return result;
+}
+
+QPoint CHInstrumentLayout::calculateCenterPnt(QSize fromSize, QSize itemSize) const
+{
+    QPoint centerPoint;
+
+    if((fromSize.width() - fromSize.width() / 2.0 - itemSize.width() / 2.0) > 0.0)
+    {
+        centerPoint.setX(fromSize.width() - fromSize.width() / 2.0 - itemSize.width() / 2.0);
+    }
+
+    if((fromSize.height() - fromSize.height() / 2.0 - itemSize.height() / 2.0) > 0.0)
+    {
+        centerPoint.setY(fromSize.height() - fromSize.height() / 2.0 - itemSize.height() / 2.0);
+    }
+
+    return centerPoint;
+}
+
+QSize CHInstrumentLayout::calculateProperSize(QSize fromSize) const
+{
+    QSize resultSize;
+
+    if (fromSize.height() < fromSize.width()) {
+        resultSize.setHeight (fromSize.height() - margin());
+        resultSize.setWidth  (fromSize.height() - margin());
+    } else {
+        resultSize.setHeight (fromSize.width() - margin());
+        resultSize.setWidth  (fromSize.width() - margin());
+    }
+
+    return resultSize;
+}
+
+void CHInstrumentLayout::init(int spacing)
+{
+    m_item = 0;
+
+    m_rectLast = new QRect(0, 0, 0, 0);
+    m_geometry = new QRect(0, 0, 0, 0);
+
+    setSpacing(spacing);
+}
+
+void CHInstrumentLayout::setRectLast(const QRect &rect)
+{
+    QRect *tempRect = m_rectLast;
+
+    m_rectLast = new QRect(rect.topLeft(), rect.size());
+    delete tempRect;
 }
