@@ -13,6 +13,14 @@
 
 typedef enum
 {
+    typeGyroscope    = 0x0,
+    typeAcceleration = 0x1,
+    typeMagnetic     = 0x2,
+    typeEuler        =0x3
+}typeID_t;
+
+typedef enum
+{
     kItemTest8F = 0x60,
     kItemRFSOL =               0x62,   /* new RF data */
     kItemIMUSOL =               0x91,   /* new IMU data */

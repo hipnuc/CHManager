@@ -4,7 +4,7 @@
 #
 #/
 
-QT       += core gui serialport svg
+QT       += core gui serialport svg printsupport
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -22,6 +22,8 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    chart/chcustomplot.cpp \
+    chart/qcustomplot/qcustomplot.cpp \
     console/chconsole.cpp \
     device/chserialdevice.cpp \
     dock/chinstrumentcluster.cpp \
@@ -32,6 +34,8 @@ SOURCES += \
     protocol/kptl.cpp
 
 HEADERS += \
+    chart/chcustomplot.h \
+    chart/qcustomplot/qcustomplot.h \
     console/chconsole.h \
     device/chserialdevice.h \
     dashboard.h \
