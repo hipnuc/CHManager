@@ -53,8 +53,8 @@ void Dashboard::setupDataBinder()
 {
     console = new CHConsole();
     realdata = new CHRealTime();
-    attitude = new CHAttitudeIndicator();
-    compass = new CHCompass();
+    attitude = new CHInstrumentWidget("AttitudeIndicator");
+    compass = new CHInstrumentWidget("Compass");
 
     realdata_dock->setWidget(realdata);
     realdata->transaction();

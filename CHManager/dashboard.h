@@ -54,8 +54,7 @@ private:
 
     CHConsole *console;
     CHRealTime *realdata;
-    CHAttitudeIndicator *attitude;
-    CHCompass *compass;
+    CHInstrumentWidget *attitude, *compass;
 
 protected:
 
