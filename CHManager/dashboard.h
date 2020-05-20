@@ -11,6 +11,7 @@
 #include "console/chconsole.h"
 #include "dock/chrealtime.h"
 #include "dock/chinstrumentcluster.h"
+#include "chart/chcustomplot.h"
 
 #include <QMainWindow>
 #include <QTranslator>
@@ -55,6 +56,11 @@ private:
     CHConsole *console;
     CHRealTime *realdata;
     CHInstrumentWidget *attitude, *compass;
+    CHCustomPlot *gyr_plot, *acc_plot;
+    CHCustomPlot  *mag_plot, *eul_plot;
+
+    QAction *gyr_action, *acc_action;
+    QAction *mag_action, *eul_action;
 
 protected:
 
@@ -66,8 +72,8 @@ private slots:
     void setCurrentBaudrate(QAction* action);
     void readData();
     void showConsole();
-    void showCustomchart();
+    void showCustomchart(bool b);
     void docktoggleView(bool b);
-
+    void closeCustomchart(int type);
 };
 #endif // DASHBOARD_H

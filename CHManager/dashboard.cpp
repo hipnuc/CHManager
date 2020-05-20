@@ -55,6 +55,10 @@ void Dashboard::setupDataBinder()
     realdata = new CHRealTime();
     attitude = new CHInstrumentWidget("AttitudeIndicator");
     compass = new CHInstrumentWidget("Compass");
+    gyr_plot = new CHCustomPlot(typeGyroscope);
+    acc_plot = new CHCustomPlot(typeAcceleration);
+    mag_plot = new CHCustomPlot(typeMagnetic);
+    eul_plot = new CHCustomPlot(typeEuler);
 
     realdata_dock->setWidget(realdata);
     realdata->transaction();
@@ -64,6 +68,11 @@ void Dashboard::setupDataBinder()
 
     heading_dock->setWidget(compass);
     compass->transaction();
+
+    connect(gyr_plot, SIGNAL(sendEvent(const int)), this, SLOT(closeCustomchart(int)));
+    connect(acc_plot, SIGNAL(sendEvent(const int)), this, SLOT(closeCustomchart(int)));
+    connect(mag_plot, SIGNAL(sendEvent(const int)), this, SLOT(closeCustomchart(int)));
+    connect(eul_plot, SIGNAL(sendEvent(const int)), this, SLOT(closeCustomchart(int)));
 
     connect(ch_dev.m_serial, SIGNAL(readyRead()), this, SLOT(readData()));
 }
@@ -241,41 +250,46 @@ void Dashboard::setupMenuBar()
        action = viewMenu->addSeparator();
 
        const QIcon gyroscope_Icon = QIcon::fromTheme("", QIcon(":/images/resource/gyroscope_32px.png"));
-       action = chartMenu->addAction(gyroscope_Icon, tr("Gyroscope"));
-       action->setCheckable(true);
-       action->setStatusTip(tr("Creates a Chart View with Gyroscope"));
-       viewToolBar->addAction(action);
-       connect(action, SIGNAL(triggered()), this, SLOT(showCustomchart()));
+       gyr_action = chartMenu->addAction(gyroscope_Icon, tr("Gyroscope"));
+       gyr_action->setCheckable(true);
+       gyr_action->setObjectName("act_gyr");
+       gyr_action->setStatusTip(tr("Creates a Chart View with Gyroscope"));
+       viewToolBar->addAction(gyr_action);
+       connect(gyr_action, SIGNAL(triggered(bool)), this, SLOT(showCustomchart(bool)));
 
        const QIcon acceleration_Icon = QIcon::fromTheme("", QIcon(":/images/resource/speedometer_32px.png"));
-       action = chartMenu->addAction(acceleration_Icon, tr("Acceleration"));
-       action->setCheckable(true);
-       action->setStatusTip(tr("Creates a Chart View with Acceleration"));
-       viewToolBar->addAction(action);
-       connect(action, SIGNAL(triggered()), this, SLOT(showCustomchart()));
+       acc_action = chartMenu->addAction(acceleration_Icon, tr("Acceleration"));
+       acc_action->setCheckable(true);
+       acc_action->setObjectName("act_acc");
+       acc_action->setStatusTip(tr("Creates a Chart View with Acceleration"));
+       viewToolBar->addAction(acc_action);
+       connect(acc_action, SIGNAL(triggered(bool)), this, SLOT(showCustomchart(bool)));
 
        const QIcon magnetic_field_Icon = QIcon::fromTheme("", QIcon(":/images/resource/magnetic_32px.png"));
-       action = chartMenu->addAction(magnetic_field_Icon, tr("Magnetic Field"));
-       action->setCheckable(true);
-       action->setStatusTip(tr("Creates a Chart View with Magnetic Field"));
-       viewToolBar->addAction(action);
-       connect(action, SIGNAL(triggered()), this, SLOT(showCustomchart()));
+       mag_action = chartMenu->addAction(magnetic_field_Icon, tr("Magnetic Field"));
+       mag_action->setCheckable(true);
+       mag_action->setObjectName("act_mag");
+       mag_action->setStatusTip(tr("Creates a Chart View with Magnetic Field"));
+       viewToolBar->addAction(mag_action);
+       connect(mag_action, SIGNAL(triggered(bool)), this, SLOT(showCustomchart(bool)));
 
        const QIcon euler_Icon = QIcon::fromTheme("", QIcon(":/images/resource/line_chart_32px.png"));
-       action = chartMenu->addAction(euler_Icon, tr("Euler Angle"));
-       action->setCheckable(true);
-       action->setStatusTip(tr("Creates a Chart View with Euler Angle"));
-       viewToolBar->addAction(action);
-       connect(action, SIGNAL(triggered()), this, SLOT(showCustomchart()));
+       eul_action = chartMenu->addAction(euler_Icon, tr("Euler Angle"));
+       eul_action->setCheckable(true);
+       eul_action->setObjectName("act_eul");
+       eul_action->setStatusTip(tr("Creates a Chart View with Euler Angle"));
+       viewToolBar->addAction(eul_action);
+       connect(eul_action, SIGNAL(triggered(bool)), this, SLOT(showCustomchart(bool)));
 
        const QIcon quaternion_Icon = QIcon::fromTheme("", QIcon(":/images/resource/quaterly_32px.png"));
        action = chartMenu->addAction(quaternion_Icon, tr("Quaternion"));
        action->setCheckable(true);
+       action->setObjectName("act_quat");
        action->setStatusTip(tr("Creates a Chart View with Quaternion"));
        viewToolBar->addAction(action);
        viewMenu->addMenu(chartMenu);
        viewMenu->addSeparator();
-       connect(action, SIGNAL(triggered()), this, SLOT(showCustomchart()));
+       connect(action, SIGNAL(triggered(bool)), this, SLOT(showCustomchart(bool)));
 
        const QIcon tracker_Icon = QIcon::fromTheme("", QIcon(":/images/resource/track_order_32px.png"));
        action = chartMenu->addAction(tracker_Icon, tr("UWB Tracker"));
@@ -432,29 +446,6 @@ void Dashboard::setupMenuBar()
        action = helpMenu->addAction(upgrade_Icon, tr("Checking Available Upgrade"));
        action->setCheckable(true);
        action->setStatusTip(tr("Checking Available Upgrade"));
-
-   //! [Line Action]
-       QToolBar *lineBar = addToolBar(tr("Lines"));
-
-       const QIcon screenshot_Icon = QIcon::fromTheme("", QIcon(":/images/resource/screenshot_32px.png"));
-       action = lineBar->addAction(screenshot_Icon, tr("Screenshot"));
-       action->setCheckable(true);
-       action->setStatusTip(tr("Screenshot current View Chart"));
-
-       const QIcon erase_Icon = QIcon::fromTheme("", QIcon(":/images/resource/erase_32px.png"));
-       action = lineBar->addAction(erase_Icon, tr("Clear Chart"));
-       action->setCheckable(true);
-       action->setStatusTip(tr("Clear current workspace View Chart"));
-
-       const QIcon setting_Icon = QIcon::fromTheme("", QIcon(":/images/resource/settings_32px.png"));
-       action = lineBar->addAction(setting_Icon, tr("Chart Setting"));
-       action->setCheckable(true);
-       action->setStatusTip(tr("Chart Setting"));
-
-       const QIcon pen_Icon = QIcon::fromTheme("", QIcon(":/images/resource/line_width_32px.png"));
-       action = lineBar->addAction(pen_Icon, tr("Pen"));
-       action->setCheckable(true);
-       action->setStatusTip(tr("Change the Specify View Chart Lines option"));
 }
 
 void Dashboard::setupStatusBar()
@@ -606,11 +597,53 @@ void Dashboard::readData()
 void Dashboard::showConsole()
 {
     //console->show();
-    grid->addWidget(console);
+    grid->addWidget(console, 0, 0);
     this->console->transaction();
 }
 
-void Dashboard::showCustomchart()
+void Dashboard::showCustomchart(bool b)
 {
+    QAction *action =  qobject_cast <QAction *>(sender());
+    CHCustomPlot *q = nullptr;
 
+    if (action->objectName() == "act_gyr") {
+        q = this->gyr_plot;
+    }
+    else if (action->objectName() == "act_acc")
+        q = this->acc_plot;
+    else if (action->objectName() == "act_mag")
+        q = this->mag_plot;
+    else if (action->objectName() == "act_eul")
+        q = this->eul_plot;
+
+    if (b == q->isHidden()) {
+        if (b) {
+            q->show();
+            //grid->addWidget(q, 0, 1);
+            q->transaction();
+        }else {
+            q->close();
+            q->abort();
+        }
+    }
+}
+
+void Dashboard::closeCustomchart(int type)
+{
+    switch (type) {
+        case typeGyroscope:
+        gyr_action->setChecked(false);
+        break;
+    case typeAcceleration:
+        acc_action->setChecked(false);
+        break;
+    case typeMagnetic:
+        mag_action->setChecked(false);
+        break;
+    case typeEuler:
+        eul_action->setChecked(false);
+        break;
+    default:
+        break;
+    }
 }
